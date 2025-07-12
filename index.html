@@ -272,7 +272,7 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const messageBox = document.getElementById('message-box');
         const messageContent = document.getElementById('message-content');
-        const messageOkButton = document.getElementById('message-ok-button'); // Fixed: Removed 'document = '
+        const messageOkButton = document.getElementById('message-ok-button');
         const messageCancelButton = document.getElementById('message-cancel-button');
 
         // Lock elements
@@ -475,15 +475,23 @@
         }
 
         /**
-         * Resizes a given canvas to match its parent container's dimensions.
+         * Resizes a given canvas to match its parent container's dimensions,
+         * accounting for device pixel ratio.
          * @param {HTMLCanvasElement} canvas - The canvas element to resize.
          * @param {CanvasRenderingContext2D} ctx - The 2D rendering context of the canvas.
          * @param {Array} strokes - The drawing strokes to redraw after resize.
          */
         function resizeCanvas(canvas, ctx, strokes) {
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
+            const displayWidth = canvas.clientWidth;
+            const displayHeight = canvas.clientHeight;
+
+            // Set canvas's internal resolution to match its display size, accounting for devicePixelRatio
+            canvas.width = displayWidth * window.devicePixelRatio;
+            canvas.height = displayHeight * window.devicePixelRatio;
+
+            // Scale the context to ensure drawings are rendered correctly at the new resolution
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
             redrawCanvas(ctx, strokes || []);
         }
 
@@ -492,7 +500,8 @@
          * @param {CanvasRenderingContext2D} ctx - The 2D rendering context of the canvas.
          */
         function clearCanvas(ctx) {
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            // Clear the canvas using its internal resolution
+            ctx.clearRect(0, 0, ctx.canvas.width / window.devicePixelRatio, ctx.canvas.height / window.devicePixelRatio);
         }
 
         /**
@@ -691,7 +700,7 @@
 
             if (!pageData) return;
 
-            // Get coordinates relative to the canvas content area
+            // Get coordinates relative to the canvas content area, accounting for devicePixelRatio
             const rect = canvas.getBoundingClientRect();
             let clientX, clientY;
             if (e.touches) {
@@ -701,8 +710,9 @@
                 clientX = e.clientX;
                 clientY = e.clientY;
             }
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
+            // Scale coordinates back by devicePixelRatio for drawing on the scaled context
+            const x = (clientX - rect.left) / window.devicePixelRatio;
+            const y = (clientY - rect.top) / window.devicePixelRatio;
 
             if (e.type === 'mousedown' || e.type === 'touchstart') {
                 isDrawing = true;
@@ -1101,7 +1111,21 @@
 
         // --- Firebase Initialization and Auth ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(__firebase_config);
+
+        // Firebase configuration:
+        // IMPORTANT: If you are deploying this app outside of the Canvas environment (e.g., to GitHub Pages),
+        // you MUST replace the placeholder below with your actual Firebase project configuration.
+        // Go to your Firebase project, Project settings -> Your apps -> Web app, and copy the config snippet.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ?
+                             JSON.parse(__firebase_config) :
+                             {
+                                 apiKey: "YOUR_API_KEY", // Replace with your actual API Key
+                                 authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // Replace with your actual Auth Domain
+                                 projectId: "YOUR_PROJECT_ID", // Replace with your actual Project ID
+                                 storageBucket: "YOUR_PROJECT_ID.appspot.com", // Replace with your actual Storage Bucket
+                                 messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // Replace with your actual Messaging Sender ID
+                                 appId: "YOUR_APP_ID" // Replace with your actual App ID
+                             };
 
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
